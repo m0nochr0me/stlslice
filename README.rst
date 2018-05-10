@@ -28,11 +28,6 @@ Distribution independent::
 
     $ sudo pip install pipenv
 
-You probably need to add your user to the following groups: ``uucp``, ``dialout``, ``tty``::
-
-    $ sudo usermod -a -G uucp *username*
-    $ sudo usermod -a -G tty *username*
-    $ sudo usermod -a -G dialout *username*
 
 Install::
 
