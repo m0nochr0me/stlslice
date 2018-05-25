@@ -88,44 +88,56 @@ model.SetFileName(options.filename)
 model.ScalarTagsOn()
 model.Update()
 
-# original model bounds
-mb = model.GetOutput().GetBounds()
-
-# original model size
-ms = [
-        mb[1] - mb[0],
-        mb[3] - mb[2],
-        mb[5] - mb[4],
-    ]
-
-if options.verbose:
-    print("Model dimenstions: ", ms)
-
 # create transformation matrix
-tm = vtk.vtkTransform()
+mirror = vtk.vtkTransform()
+mirrorfilter = vtk.vtkTransformFilter()
+mirrorfilter.SetInputConnection(model.GetOutputPort())
+mirrorfilter.SetTransform(mirror)
 
-transform = vtk.vtkTransformFilter()
-transform.SetInputConnection(model.GetOutputPort())
-transform.SetTransform(tm)
-transform.Update()
-
-# reset origin
-tm.Translate(-mb[0], -mb[2], -mb[4])
-
-tm.Scale(1, -1, 1)  # mirror model by Y axis
+# mirror model by Y axis
+mirror.Scale(1, -1, 1)
 
 if options.xmirror:
-    tm.Scale(-1, 1, 1)
+    mirror.Scale(-1, 1, 1)
+
+mirrorfilter.Update()
+
+rotate = vtk.vtkTransform()
+rotatefilter = vtk.vtkTransformFilter()
+rotatefilter.SetInputConnection(mirrorfilter.GetOutputPort())
+rotatefilter.SetTransform(rotate)
 
 if options.yup:
-    tm.RotateX(90)
+    rotate.RotateX(-90)
 
-transform.Update()
+rotatefilter.Update()
+
+# model bounds
+bounds = rotatefilter.GetOutput().GetBounds()
+print(bounds)
+
+# model size
+dimX = bounds[1] - bounds[0]
+dimY = bounds[3] - bounds[2]
+dimZ = bounds[5] - bounds[4]
+
+if options.verbose:
+    print("Model dimenstions: ", dimX, dimY, dimZ)
+
+translate = vtk.vtkTransform()
+translatefilter = vtk.vtkTransformFilter()
+translatefilter.SetInputConnection(rotatefilter.GetOutputPort())
+translatefilter.SetTransform(translate)
+
+# reset origin
+translate.Translate(-bounds[0], -bounds[2], -bounds[4])
+
+translatefilter.Update()
 
 # copy poly data of modified model
 # mdlpd = transform.GetOutput()
 polydata = vtk.vtkPolyData()
-polydata.DeepCopy(transform.GetOutput())
+polydata.DeepCopy(translatefilter.GetOutput())
 
 # apply connectivity filter
 cf = vtk.vtkPolyDataConnectivityFilter()
@@ -167,7 +179,7 @@ stripper.Update()
 
 def Slice(layerheight):
     currentz = layerheight
-    layerscount = math.floor(ms[2] / layerheight)
+    layerscount = math.floor(dimZ / layerheight)
     partscount = cf.GetNumberOfExtractedRegions()
 
     layers = []
@@ -306,8 +318,8 @@ def Slice(layerheight):
 
 
 def Save(layers):
-    h = math.ceil(ms[0] * dpmm[0])
-    w = math.ceil(ms[1] * dpmm[1])
+    h = math.ceil(dimX * dpmm[0])
+    w = math.ceil(dimY * dpmm[1])
     padding = math.ceil(options.padding * dpmm[0])
     n = 0
     layerscount = len(layers)
