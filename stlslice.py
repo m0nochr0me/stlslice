@@ -65,6 +65,10 @@ parser.add_argument("-d",
                   type=float,
                   default=(21.16402, 21.16402),
                   help="Pixel per mm x y")
+parser.add_argument("--gif",
+                  dest="gif",
+                  action="store_true",
+                  help="Use GIF output")
 
 options= parser.parse_args()
 if options.filename is None:
@@ -334,7 +338,10 @@ def Save(layers):
             cv2.fillPoly(imcv, pt, color=255, shift=3, lineType=cv2.LINE_AA)
         impil = Image.fromarray(imcv)
         imexp = ImageOps.expand(impil, padding)
-        imexp.save("{}/slices/layer-{}.gif".format(tmpdir.name, n), "GIF", optimize=True)
+        if options.gif:
+            imexp.save("{}/slices/layer-{}.gif".format(tmpdir.name, n), "GIF", optimize=True)
+        else:
+            imexp.save("{}/slices/layer-{}.png".format(tmpdir.name, n), "PNG", dpi=dpi)
         n += 1
     archfile = "{}.txz".format(options.filename)
     # archfile = "{}-{}x{}-{}mm.txz".format(options.filename, *dpmm, options.layerheight)
